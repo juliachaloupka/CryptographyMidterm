@@ -8,7 +8,9 @@
 # Daniel Mitchell - Master's Computer Engineering
 #
 
-
+# AES S-Box - Substitution values in hexadecimal notation for 
+# input byte (x-row, y-column)
+# 
 s_box = (
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -28,6 +30,9 @@ s_box = (
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
 )
 
+# Inverse AES S-box - Substituion values in hexadecimal notation for
+# input byte (x-row, y-column)
+#
 inverse_s_box = (
     0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
     0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
@@ -47,25 +52,43 @@ inverse_s_box = (
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
 )
 
-
+# byte substitution layer
+# only nonlinear element of AES 
+#
 def substitute_bytes(s):
     for i in range(4):
         for j in range(4):
             s[i][j] = s_box[s[i][j]]
 
-
+# byte substitution layer
+# reverses the byte subsitution from forward encryption using inverse s-box
+# only nonlinear element of AES 
+#
 def inv_substitute_bytes(s):
     for i in range(4):
         for j in range(4):
             s[i][j] = inverse_s_box[s[i][j]]
 
 
+# ShiftRows transform cyclically
+# Purpose is to increase diffusion properties
+# First row - no shift
+# Second row - one position left shift
+# Third row - two positions left shift
+# Fourth row - three positions left shift
+# 
 def shift_rows(s):
     s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
     s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
     s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
 
-
+# ShiftRows transform cyclically
+# Purpose is to reverse diffusion properties from encryption
+# First row - no shift
+# Second row - one position right shift
+# Third row - two positions right shift
+# Fourth row - three positions right shift
+# 
 def inv_shift_rows(s):
     s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
     s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
@@ -78,11 +101,15 @@ def add_round_key(s, k):
 
 
 # learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
+#
 xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 
-
+# subroutine of of mix columns
+# see mix column below
+#
 def mix_single_column(a):
-    # see Sec 4.1.2 in The Design of Rijndael
+    # Mix column math 
+    # source of this is from the section 4.1.2 of the Rijndal design
     t = a[0] ^ a[1] ^ a[2] ^ a[3]
     u = a[0]
     a[0] ^= t ^ xtime(a[0] ^ a[1])
@@ -90,12 +117,17 @@ def mix_single_column(a):
     a[2] ^= t ^ xtime(a[2] ^ a[3])
     a[3] ^= t ^ xtime(a[3] ^ u)
 
-
+# mix column mixes each column of the state matrix 
+# the purpose is the major diffusion element of AES
+#
 def mix_columns(s):
     for i in range(4):
         mix_single_column(s[i])
 
-
+# mix column mixes each column of the state matrix 
+# inverse mix column reverses the changes made in the forward encryption operation 
+# the purpose is the major diffusion element of AES
+#
 def inv_mix_columns(s):
     # see Sec 4.1.3 in The Design of Rijndael
     for i in range(4):
@@ -116,20 +148,33 @@ r_con = (
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 )
 
-
+# this routine conversts a 16-byte array into a 4x4 matrix
+# to ease the computational code
+#
 def bytes2matrix(text):
+    ########################### remove this comment line below ??????????????????
     """ Converts a 16-byte array into a 4x4 matrix.  """
     return [list(text[i:i+4]) for i in range(0, len(text), 4)]
 
+# this routine conversts a 4x4 matrix into a 16-byte array
+# to ease the computational code
+#
 def matrix2bytes(matrix):
+    ########################### remove this comment line below ??????????????????
     """ Converts a 4x4 matrix into a 16-byte array.  """
     return bytes(sum(matrix, []))
 
+# this routine performs an xor on the bytes in an array
+# 
 def xor_bytes(a, b):
+    ########################### remove this comment line below ??????????????????
     """ Returns a new byte array with the elements xor'ed. """
     return bytes(i^j for i, j in zip(a, b))
 
+# this routine performs an xor on the bytes in an array
+# 
 def inc_bytes(a):
+    ########################### remove this comment line below ??????????????????
     """ Returns a new byte array with the value increment by 1 """
     out = list(a)
     for i in reversed(range(len(out))):
@@ -140,7 +185,12 @@ def inc_bytes(a):
             break
     return bytes(out)
 
+#    Pads the given plaintext with PKCS#7 padding to a multiple of 16 bytes.
+#    Note that if the plaintext size is a multiple of 16,
+#    a whole block will be added.
+#
 def pad(plaintext):
+    
     """
     Pads the given plaintext with PKCS#7 padding to a multiple of 16 bytes.
     Note that if the plaintext size is a multiple of 16,
