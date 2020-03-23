@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# University of Iowa - Spring 2020
+# ECE:5995:0002 Spr2020 Contemp Topics in Elect & Computer Eng
+# Cryptography
+#
+# Julia Chalaypka - 
+# and 
+# Daniel Mitchell - Master's Computer Engineering
+#
 
 
 s_box = (
