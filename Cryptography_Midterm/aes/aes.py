@@ -3,7 +3,7 @@
 # ECE:5995:0002 Spr2020 Contemp Topics in Elect & Computer Eng
 # Cryptography
 #
-# Julia Chalaypka - 
+# Julia Chalaypka - Master's Computer Engineering 
 # and 
 # Daniel Mitchell - Master's Computer Engineering
 #
@@ -58,6 +58,7 @@ inverse_s_box = (
 def substitute_bytes(s):
     for i in range(4):
         for j in range(4):
+            
             s[i][j] = s_box[s[i][j]]
 
 # byte substitution layer
@@ -78,9 +79,14 @@ def inv_substitute_bytes(s):
 # Fourth row - three positions left shift
 # 
 def shift_rows(s):
-    s[0][1], s[1][1], s[2][1], s[3][1] = s[1][1], s[2][1], s[3][1], s[0][1]
-    s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
-    s[0][3], s[1][3], s[2][3], s[3][3] = s[3][3], s[0][3], s[1][3], s[2][3]
+  
+    swaprow1 = (s[1][1],s[2][1], s[3][1], s[0][1])
+    swaprow2 = (s[2][2], s[3][2], s[0][2], s[1][2])
+    swaprow3 = (s[3][3], s[0][3], s[1][3], s[2][3])
+    
+    s[0][1], s[1][1], s[2][1], s[3][1] = swaprow1
+    s[0][2], s[1][2], s[2][2], s[3][2] = swaprow2
+    s[0][3], s[1][3], s[2][3], s[3][3] = swaprow3
 
 # ShiftRows transform cyclically
 # Purpose is to reverse diffusion properties from encryption
@@ -90,14 +96,19 @@ def shift_rows(s):
 # Fourth row - three positions right shift
 # 
 def inv_shift_rows(s):
-    s[0][1], s[1][1], s[2][1], s[3][1] = s[3][1], s[0][1], s[1][1], s[2][1]
-    s[0][2], s[1][2], s[2][2], s[3][2] = s[2][2], s[3][2], s[0][2], s[1][2]
-    s[0][3], s[1][3], s[2][3], s[3][3] = s[1][3], s[2][3], s[3][3], s[0][3]
+  
+    swap_invrow1 = s[3][1], s[0][1], s[1][1], s[2][1]
+    swap_invrow2 = s[2][2], s[3][2], s[0][2], s[1][2]
+    swap_invrow3 = s[1][3], s[2][3], s[3][3], s[0][3]
+    
+    s[0][1], s[1][1], s[2][1], s[3][1] = swap_invrow1
+    s[0][2], s[1][2], s[2][2], s[3][2] = swap_invrow2
+    s[0][3], s[1][3], s[2][3], s[3][3] = swap_invrow3
 
 def add_round_key(s, k):
     for i in range(4):
         for j in range(4):
-            s[i][j] ^= k[i][j]
+            s[i][j] =  s[i][j] ^ k[i][j]
 
 
 # learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
@@ -311,121 +322,8 @@ class AES:
 
         return matrix2bytes(cipher_state)
 
-    def encrypt_cbc(self, plaintext, iv):
-        """
-        Encrypts `plaintext` using CBC mode and PKCS#7 padding, with the given
-        initialization vector (iv).
-        """
-        assert len(iv) == 16
 
-        plaintext = pad(plaintext)
-
-        blocks = []
-        previous = iv
-        for plaintext_block in split_blocks(plaintext):
-            # CBC mode encrypt: encrypt(plaintext_block XOR previous)
-            block = self.encrypt_block(xor_bytes(plaintext_block, previous))
-            blocks.append(block)
-            previous = block
-
-        return b''.join(blocks)
-
-    def decrypt_cbc(self, ciphertext, iv):
-        """
-        Decrypts `plaintext` using CBC mode and PKCS#7 padding, with the given
-        initialization vector (iv).
-        """
-        assert len(iv) == 16
-
-        blocks = []
-        previous = iv
-        for ciphertext_block in split_blocks(ciphertext):
-            # CBC mode decrypt: previous XOR decrypt(ciphertext)
-            blocks.append(xor_bytes(previous, self.decrypt_block(ciphertext_block)))
-            previous = ciphertext_block
-
-        return unpad(b''.join(blocks))
-
-
-
-import os
-from hashlib import pbkdf2_hmac
-from hmac import new as new_hmac, compare_digest
-
-AES_KEY_SIZE = 16
-HMAC_KEY_SIZE = 16
-IV_SIZE = 16
-
-SALT_SIZE = 16
-HMAC_SIZE = 32
-
-def get_key_iv(password, salt, workload=100000):
-    """
-    Stretches the password and extracts an AES key, an HMAC key and an AES
-    initialization vector.
-    """
-    stretched = pbkdf2_hmac('sha256', password, salt, workload, AES_KEY_SIZE + IV_SIZE + HMAC_KEY_SIZE)
-    aes_key, rest = stretched[:AES_KEY_SIZE], stretched[AES_KEY_SIZE:]
-    hmac_key, rest = stretched[:HMAC_KEY_SIZE], stretched[HMAC_KEY_SIZE:]
-    iv = stretched[:IV_SIZE]
-    return aes_key, hmac_key, iv
-
-
-def encrypt(key, plaintext, workload=100000):
-    """
-    Encrypts `plaintext` with `key` using AES-128, an HMAC to verify integrity,
-    and PBKDF2 to stretch the given key.
-    The exact algorithm is specified in the module docstring.
-    """
-    if isinstance(key, str):
-        key = key.encode('utf-8')
-    if isinstance(plaintext, str):
-        plaintext = plaintext.encode('utf-8')
-
-    salt = os.urandom(SALT_SIZE)
-    key, hmac_key, iv = get_key_iv(key, salt, workload)
-    ciphertext = AES(key).encrypt_cbc(plaintext, iv)
-    hmac = new_hmac(hmac_key, salt + ciphertext, 'sha256').digest()
-    assert len(hmac) == HMAC_SIZE
-
-    return hmac + salt + ciphertext
-
-
-def decrypt(key, ciphertext, workload=100000):
-    """
-    Decrypts `plaintext` with `key` using AES-128, an HMAC to verify integrity,
-    and PBKDF2 to stretch the given key.
-    The exact algorithm is specified in the module docstring.
-    """
-
-    assert len(ciphertext) % 16 == 0, "Ciphertext must be made of full 16-byte blocks."
-
-    assert len(ciphertext) >= 32, """
-    Ciphertext must be at least 32 bytes long (16 byte salt + 16 byte block). To
-    encrypt or decrypt single blocks use `AES(key).decrypt_block(ciphertext)`.
-    """
-
-    if isinstance(key, str):
-        key = key.encode('utf-8')
-
-    hmac, ciphertext = ciphertext[:HMAC_SIZE], ciphertext[HMAC_SIZE:]
-    salt, ciphertext = ciphertext[:SALT_SIZE], ciphertext[SALT_SIZE:]
-    key, hmac_key, iv = get_key_iv(key, salt, workload)
-
-    expected_hmac = new_hmac(hmac_key, salt + ciphertext, 'sha256').digest()
-    assert compare_digest(hmac, expected_hmac), 'Ciphertext corrupted or tampered.'
-
-    return AES(key).decrypt_cbc(ciphertext, iv)
-
-
-def benchmark():
-    key = b'P' * 16
-    message = b'M' * 16
-    aes = AES(key)
-    for i in range(30000):
-        aes.encrypt_block(message)
-
-__all__ = [encrypt, decrypt, AES]
+__all__ = [AES]
 
 if __name__ == '__main__':
     import sys
