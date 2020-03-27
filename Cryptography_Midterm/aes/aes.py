@@ -128,7 +128,13 @@ def add_round_key(s, k):
 
 
 # learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
-xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
+def gmult(a):
+    if a & 0x80:
+        result = (((a << 1) ^ 0x1B) & 0xFF)
+    else:
+       result= a<<1
+       
+    return result;
 
 # subroutine of of mix columns
 # see mix column below
@@ -136,12 +142,12 @@ xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
 def mix_single_column(a):
     # Mix column math 
     # source of this is from the section 4.1.2 of the Rijndal design
-    x = a[0] ^ a[1] ^ a[2] ^ a[3]
-    y = a[0]
-    a[0] = a[0]^ ( x ^ xtime(a[0] ^ a[1]))
-    a[1] = a[1]^ ( x ^ xtime(a[1] ^ a[2]))
-    a[2] = a[2]^ ( x ^ xtime(a[2] ^ a[3]))
-    a[3] = a[3]^ ( x ^ xtime(a[3] ^ y))
+    init_a = a[0] ^ a[1] ^ a[2] ^ a[3]
+    temp_a0 = a[0]
+    a[0] = a[0]^ ( init_a ^ gmult(a[0] ^ a[1]))
+    a[1] = a[1]^ ( init_a ^ gmult(a[1] ^ a[2]))
+    a[2] = a[2]^ ( init_a ^ gmult(a[2] ^ a[3]))
+    a[3] = a[3]^ ( init_a ^ gmult(a[3] ^ temp_a0))
 
 # mix column mixes each column of the state matrix 
 # the purpose is the major diffusion element of AES
@@ -152,22 +158,32 @@ def mix_columns(s):
     while i<4:
         mix_single_column(s[i])
         i = i+1;
+        
+# mix column mixes each column of the state matrix 
+# the purpose is the major diffusion element of AES
+#TODO
+def inv_mix_columns(s):
+    
+    i = 0;
+    while i<4:
+        inv_mix_column(s[i])
+        i = i+1;
 
+    mix_columns(s)
+    
 # mix column mixes each column of the state matrix 
 # inverse mix column reverses the changes made in the forward encryption operation 
 # the purpose is the major diffusion element of AES
 #TODO
-def inv_mix_columns(s):
+def inv_mix_column(s):
     # see Sec 4.1.3 in The Design of Rijndael
-    for i in range(4):
-        u = xtime(xtime(s[i][0] ^ s[i][2]))
-        v = xtime(xtime(s[i][1] ^ s[i][3]))
-        s[i][0] ^= u
-        s[i][1] ^= v
-        s[i][2] ^= u
-        s[i][3] ^= v
+    u = gmult(gmult(s[0] ^ s[2]))
+    v = gmult(gmult(s[1] ^ s[3]))
+    s[0] = s[0]^ u
+    s[1] = s[1]^ v
+    s[2] = s[2]^ u
+    s[3] = s[3]^ v
 
-    mix_columns(s)
 ##TODO
 
 r_con = (
@@ -221,7 +237,7 @@ class AES:
         assert len(master_key) == 16
         self.numRounds = 10
         self._key_matrices = self._expand_key(master_key)
-
+        self._master_key = master_key
     def _expand_key(self, master_key):
         """
         Expands and returns a list of key matrices for the given master_key.
@@ -252,22 +268,27 @@ class AES:
 
         # Group key words in 4x4 byte matrices.
         return [key_matrix[4*i : 4*(i+1)] for i in range(len(key_matrix) // 4)]
-
+        
+        
     def encrypt_block(self, plaintext):
         """
         Encrypts a single block of 16 byte long plaintext.
         """
+        print("", bytes(self._master_key))
+
         assert len(plaintext) == 16
 
         plaintext_state = bytes2matrix(plaintext)
 
         add_round_key(plaintext_state, self._key_matrices[0])
 
-        for i in range(1, 10):
+        i = 1;
+        while i < 10: 
             substitute_bytes(plaintext_state)
             shift_rows(plaintext_state)
             mix_columns(plaintext_state)
             add_round_key(plaintext_state, self._key_matrices[i])
+            i = i + 1;
 
         substitute_bytes(plaintext_state)
         shift_rows(plaintext_state)
