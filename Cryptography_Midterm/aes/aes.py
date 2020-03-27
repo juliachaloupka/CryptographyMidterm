@@ -152,30 +152,22 @@ r_con = (
 # to ease the computational code
 #
 def bytes2matrix(text):
-    ########################### remove this comment line below ??????????????????
-    """ Converts a 16-byte array into a 4x4 matrix.  """
     return [list(text[i:i+4]) for i in range(0, len(text), 4)]
 
 # this routine conversts a 4x4 matrix into a 16-byte array
 # to ease the computational code
 #
 def matrix2bytes(matrix):
-    ########################### remove this comment line below ??????????????????
-    """ Converts a 4x4 matrix into a 16-byte array.  """
     return bytes(sum(matrix, []))
 
 # this routine performs an xor on the bytes in an array
 # 
 def xor_bytes(a, b):
-    ########################### remove this comment line below ??????????????????
-    """ Returns a new byte array with the elements xor'ed. """
     return bytes(i^j for i, j in zip(a, b))
 
 # this routine performs an xor on the bytes in an array
 # 
 def inc_bytes(a):
-    ########################### remove this comment line below ??????????????????
-    """ Returns a new byte array with the value increment by 1 """
     out = list(a)
     for i in reversed(range(len(out))):
         if out[i] == 0xFF:
@@ -190,21 +182,11 @@ def inc_bytes(a):
 #    a whole block will be added.
 #
 def pad(plaintext):
-    
-    """
-    Pads the given plaintext with PKCS#7 padding to a multiple of 16 bytes.
-    Note that if the plaintext size is a multiple of 16,
-    a whole block will be added.
-    """
     padding_len = 16 - (len(plaintext) % 16)
     padding = bytes([padding_len] * padding_len)
     return plaintext + padding
 
 def unpad(plaintext):
-    """
-    Removes a PKCS#7 padding, returning the unpadded text and ensuring the
-    padding was correct.
-    """
     padding_len = plaintext[-1]
     assert padding_len > 0
     message, padding = plaintext[:-padding_len], plaintext[-padding_len:]
@@ -216,26 +198,22 @@ def split_blocks(message, block_size=16):
         return [message[i:i+16] for i in range(0, len(message), block_size)]
 
 
+# The main AES routine for AES 128 bit encryption CBC mode PKCS#7
+#
 class AES:
-    """
-    Class for AES-128 encryption with CBC mode and PKCS#7.
-    This is a raw implementation of AES, without key stretching or IV
-    management. Unless you need that, please use `encrypt` and `decrypt`.
-    """
     rounds_by_key_size = {16: 10, 24: 12, 32: 14}
+    
+    # Start with given key
+    #
     def __init__(self, master_key):
-        """
-        Initializes the object with a given key.
-        """
         assert len(master_key) in AES.rounds_by_key_size
         self.n_rounds = AES.rounds_by_key_size[len(master_key)]
         self._key_matrices = self._expand_key(master_key)
 
+    # Expand and return key matricies for master_key
+    # Initialize round keys with raw key material.
+    #
     def _expand_key(self, master_key):
-        """
-        Expands and returns a list of key matrices for the given master_key.
-        """
-        # Initialize round keys with raw key material.
         key_columns = bytes2matrix(master_key)
         iteration_size = len(master_key) // 4
 
@@ -267,10 +245,8 @@ class AES:
         # Group key words in 4x4 byte matrices.
         return [key_columns[4*i : 4*(i+1)] for i in range(len(key_columns) // 4)]
 
+    # Encrypt single block - 16 bytes of plaintext
     def encrypt_block(self, plaintext):
-        """
-        Encrypts a single block of 16 byte long plaintext.
-        """
         assert len(plaintext) == 16
 
         plain_state = bytes2matrix(plaintext)
@@ -289,10 +265,8 @@ class AES:
 
         return matrix2bytes(plain_state)
 
+    # Decrypt single block - 16 bytes
     def decrypt_block(self, ciphertext):
-        """
-        Decrypts a single block of 16 byte long ciphertext.
-        """
         assert len(ciphertext) == 16
 
         cipher_state = bytes2matrix(ciphertext)
@@ -311,11 +285,9 @@ class AES:
 
         return matrix2bytes(cipher_state)
 
+    # Encryption - CBC mode - PKCS#7 and IV
+    #
     def encrypt_cbc(self, plaintext, iv):
-        """
-        Encrypts `plaintext` using CBC mode and PKCS#7 padding, with the given
-        initialization vector (iv).
-        """
         assert len(iv) == 16
 
         plaintext = pad(plaintext)
@@ -330,11 +302,9 @@ class AES:
 
         return b''.join(blocks)
 
+    # Decryption - CBC mode - PKCS#7 and IV
+    #
     def decrypt_cbc(self, ciphertext, iv):
-        """
-        Decrypts `plaintext` using CBC mode and PKCS#7 padding, with the given
-        initialization vector (iv).
-        """
         assert len(iv) == 16
 
         blocks = []
@@ -345,8 +315,6 @@ class AES:
             previous = ciphertext_block
 
         return unpad(b''.join(blocks))
-
-
 
 import os
 from hashlib import pbkdf2_hmac
@@ -359,24 +327,18 @@ IV_SIZE = 16
 SALT_SIZE = 16
 HMAC_SIZE = 32
 
+# Prep the password and extract AES key - HMAC key and AES IV
+#
 def get_key_iv(password, salt, workload=100000):
-    """
-    Stretches the password and extracts an AES key, an HMAC key and an AES
-    initialization vector.
-    """
     stretched = pbkdf2_hmac('sha256', password, salt, workload, AES_KEY_SIZE + IV_SIZE + HMAC_KEY_SIZE)
     aes_key, rest = stretched[:AES_KEY_SIZE], stretched[AES_KEY_SIZE:]
     hmac_key, rest = stretched[:HMAC_KEY_SIZE], stretched[HMAC_KEY_SIZE:]
     iv = stretched[:IV_SIZE]
     return aes_key, hmac_key, iv
 
-
+# Encrytion 128 AES using key 
+#
 def encrypt(key, plaintext, workload=100000):
-    """
-    Encrypts `plaintext` with `key` using AES-128, an HMAC to verify integrity,
-    and PBKDF2 to stretch the given key.
-    The exact algorithm is specified in the module docstring.
-    """
     if isinstance(key, str):
         key = key.encode('utf-8')
     if isinstance(plaintext, str):
@@ -390,16 +352,13 @@ def encrypt(key, plaintext, workload=100000):
 
     return hmac + salt + ciphertext
 
-
+# Decryption 128 AES using key 
+#
 def decrypt(key, ciphertext, workload=100000):
-    """
-    Decrypts `plaintext` with `key` using AES-128, an HMAC to verify integrity,
-    and PBKDF2 to stretch the given key.
-    The exact algorithm is specified in the module docstring.
-    """
-
     assert len(ciphertext) % 16 == 0, "Ciphertext must be made of full 16-byte blocks."
 
+    # Ciphertext check to see it is 32 bytes long
+    #
     assert len(ciphertext) >= 32, """
     Ciphertext must be at least 32 bytes long (16 byte salt + 16 byte block). To
     encrypt or decrypt single blocks use `AES(key).decrypt_block(ciphertext)`.
@@ -413,7 +372,7 @@ def decrypt(key, ciphertext, workload=100000):
     key, hmac_key, iv = get_key_iv(key, salt, workload)
 
     expected_hmac = new_hmac(hmac_key, salt + ciphertext, 'sha256').digest()
-    assert compare_digest(hmac, expected_hmac), 'Ciphertext corrupted or tampered.'
+    assert compare_digest(hmac, expected_hmac), 'Ciphertext corrupted or altered.'
 
     return AES(key).decrypt_cbc(ciphertext, iv)
 
