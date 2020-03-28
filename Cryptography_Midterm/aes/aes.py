@@ -198,7 +198,6 @@ round_constants = (
 # to ease the computational code
 #
 def bytes2matrix(txt):
-    ########################### remove this comment line below ??????????????????
     """ Converts a 16-byte array into a 4x4 matrix.  """
     lenTxt = len(txt)
     #generate an array using 4 lists for each row 
@@ -209,19 +208,11 @@ def bytes2matrix(txt):
 # to ease the computational code
 #
 def matrix2bytes(matrix):
-    ########################### remove this comment line below ??????????????????
     """ Converts a 4x4 matrix into a 16-byte array.  """
     byte_arr = bytearray(sum(matrix, []))
     return byte_arr
 
-# this routine performs an xor on the bytes in an array
-# 
-def xor_bytes(a, b):
-    ########################### remove this comment line below ??????????????????
-    """ generate new array with the elements xor'ed. """
-    xor_arr = (i^j for i, j in zip(a,b))
-    
-    return bytearray(xor_arr)
+
 
 #TODO
 class AES:
@@ -242,6 +233,7 @@ class AES:
         self._key_matrices = self._expand_key(master_key)
         self._master_key = master_key
         
+    #learned from boppreh : https://github.com/boppreh/aes/blob/master/aes.py   
     def _expand_key(self, master_key):
         """
         Expands and returns a list of key matrices for the given master_key.
@@ -274,7 +266,9 @@ class AES:
                 row = [s_box[b] for b in row]
 
             # XOR with equivalent row from previous iteration.
-            row = xor_bytes(row, key_matrix[-iteration_size])
+
+            xor_arr = (i^j for i, j in zip(row,key_matrix[-iteration_size]))
+            row = bytearray(xor_arr)
             key_matrix.append(row)
 
         # Group key rows in 4x4 byte matrices.
@@ -290,7 +284,7 @@ class AES:
         assert len(plaintext) == 16
 
         plaintext_state = bytes2matrix(plaintext)
-
+        #for the first round 
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
@@ -300,7 +294,7 @@ class AES:
             mix_columns(plaintext_state)
             add_round_key(plaintext_state, self._key_matrices[i])
             i = i + 1;
-
+        # for the last round
         substitute_bytes(plaintext_state)
         shift_rows(plaintext_state)
         add_round_key(plaintext_state, self._key_matrices[-1])
