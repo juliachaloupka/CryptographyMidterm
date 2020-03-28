@@ -4,7 +4,7 @@
 # Cryptography
 #
 # Julia Chalaypka - Master's Computer Engineering 
-# and 
+#    and 
 # Daniel Mitchell - Master's Computer Engineering
 #
 
@@ -81,7 +81,6 @@ def inv_substitute_bytes(s):
             j = j+1
         i = i+1
 
-
 # ShiftRows transform cyclically
 # Purpose is to increase diffusion properties
 # First row - no shift
@@ -116,6 +115,9 @@ def inv_shift_rows(s):
     s[0][2], s[1][2], s[2][2], s[3][2] = swap_invrow2
     s[0][3], s[1][3], s[2][3], s[3][3] = swap_invrow3
 
+# A 128-bit round key, or subkey, which has been derived from
+# the main key in the key schedule is XORed to the state
+#
 def add_round_key(s, k):
     i=0;
     
@@ -126,21 +128,20 @@ def add_round_key(s, k):
             j = j+1
         i = i+1
 
-
-# learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
+# Part of the mix column operations
+#
 def gmult(a):
     if a & 0x80:
         result = (((a << 1) ^ 0x1B) & 0xFF)
     else:
-       result= a<<1
-       
+       result= a<<1   
     return result;
 
 # subroutine of of mix columns
 # see mix column below
 #TODO
 def mix_single_column(a):
-    # Mix column math 
+    # Mix column operations 
     # source of this is from the section 4.1.2 of the Rijndal design
     init_a = a[0] ^ a[1] ^ a[2] ^ a[3]
     temp_a0 = a[0]
@@ -153,7 +154,6 @@ def mix_single_column(a):
 # the purpose is the major diffusion element of AES
 #TODO
 def mix_columns(s):
-    
     i = 0;
     while i<4:
         mix_single_column(s[i])
@@ -162,8 +162,7 @@ def mix_columns(s):
 # mix column mixes each column of the state matrix 
 # the purpose is the major diffusion element of AES
 #TODO
-def inv_mix_columns(s):
-    
+def inv_mix_columns(s):  
     i = 0;
     while i<4:
         inv_mix_column(s[i])
@@ -184,8 +183,10 @@ def inv_mix_column(s):
     s[2] = s[2]^ u
     s[3] = s[3]^ v
 
+# Comments are needed here as to what r_con is - what is does - how its used
+# vvvvvvv
 ##TODO
-
+#
 r_con = (
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
@@ -197,8 +198,6 @@ r_con = (
 # to ease the computational code
 #
 def bytes2matrix(txt):
-    ########################### remove this comment line below ??????????????????
-    """ Converts a 16-byte array into a 4x4 matrix.  """
     lenTxt = len(txt)
     #generate an array using 4 lists for each row 
     matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
@@ -208,45 +207,37 @@ def bytes2matrix(txt):
 # to ease the computational code
 #
 def matrix2bytes(matrix):
-    ########################### remove this comment line below ??????????????????
-    """ Converts a 4x4 matrix into a 16-byte array.  """
     byte_arr = bytearray(sum(matrix, []))
     return byte_arr
 
 # this routine performs an xor on the bytes in an array
 # 
 def xor_bytes(a, b):
-    ########################### remove this comment line below ??????????????????
-    """ generate new array with the elements xor'ed. """
     xor_arr = (i^j for i, j in zip(a,b))
-    
     return bytearray(xor_arr)
 
+# AES 128bit encryption
+# Cipher Block Chaining (CBC) Mode
+# Ciphertext y(i) deptends on block x(i) and also previous plaintext blocks as well
+# No Initialization Vector
+# Initializes the object with a given key.
+# only need 128 so only need size 16, get rid of array rounds by key size
+#
 #TODO
 class AES:
-    """
-    Class for AES-128 encryption with CBC mode and PKCS#7.
-    This is a raw implementation of AES, without key stretching or IV
-    management. Unless you need that, please use `encrypt` and `decrypt`.
-    """
     def __init__(self, master_key):
-        """
-        Initializes the object with a given key.
-        """
-        #only need 128 so only need size 16, get rid of array rounds by key size 
         assert len(master_key) == 16
         self.numRounds = 10
         self._key_matrices = self._expand_key(master_key)
         self._master_key = master_key
+        
+    # Expand and return list of key matricies for given master key
+    #
     def _expand_key(self, master_key):
-        """
-        Expands and returns a list of key matrices for the given master_key.
-        """
-        # Initialize round keys with raw key material.
+        #   Initialize round keys with raw key material
         key_matrix = bytes2matrix(master_key)
         iteration_size = 4
-
-        # Each iteration has exactly as many columns as the key material.
+        #   Each iteration has exactly as many columns as the key material.      
         i = 1
         while len(key_matrix) < (self.numRounds + 1) * 4:
             # Copy previous word.
@@ -269,17 +260,12 @@ class AES:
         # Group key words in 4x4 byte matrices.
         return [key_matrix[4*i : 4*(i+1)] for i in range(len(key_matrix) // 4)]
         
-        
+    # 16 byte long plaintext encryption
+    #
     def encrypt_block(self, plaintext):
-        """
-        Encrypts a single block of 16 byte long plaintext.
-        """
         print("", bytes(self._master_key))
-
         assert len(plaintext) == 16
-
         plaintext_state = bytes2matrix(plaintext)
-
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
@@ -296,14 +282,11 @@ class AES:
 
         return matrix2bytes(plaintext_state)
 
+    # 16 byte long plaintext decryption
+    #
     def decrypt_block(self, ciphertext):
-        """
-        Decrypts a single block of 16 byte long ciphertext.
-        """
         assert len(ciphertext) == 16
-
         cipher_state = bytes2matrix(ciphertext)
-
         add_round_key(cipher_state, self._key_matrices[-1])
         inv_shift_rows(cipher_state)
         inv_substitute_bytes(cipher_state)
@@ -318,14 +301,11 @@ class AES:
 
         return matrix2bytes(cipher_state)
 
-
 __all__ = [AES]
 
 if __name__ == '__main__':
     import sys
     write = lambda b: sys.stdout.buffer.write(b)
     read = lambda: sys.stdin.buffer.read()
-
-   
-
-    # encrypt('my secret key', b'0' * 1000000) # 1 MB encrypted in 20 seconds.
+    
+# End of Code
