@@ -247,11 +247,9 @@ class AES:
         while len(key_matrix) < (self.numRounds + 1) * 4:
             # Copy previous row.
             row = list(key_matrix[-1])
-            #print("", row)
 
             # Perform schedule_core once every 4th interation/every row 
             if len(key_matrix) % iteration_size == 0:
-               # print("hi")
                 # Circular shift.
                 row.append(row.pop(0))
                 # Map to S-BOX.
@@ -279,8 +277,6 @@ class AES:
         """
         Encrypts a single block of 16 byte long plaintext.
         """
-        print(bytes(self._master_key).hex())
-
         assert len(plaintext) == 16
 
         plaintext_state = bytes2matrix(plaintext)
@@ -302,6 +298,54 @@ class AES:
         return matrix2bytes(plaintext_state)
 
     def decrypt_block(self, ciphertext):
+        """
+        Decrypts a single block of 16 byte long ciphertext.
+        """
+        assert len(ciphertext) == 16
+
+        cipher_state = bytes2matrix(ciphertext)
+
+        add_round_key(cipher_state, self._key_matrices[-1])
+        inv_shift_rows(cipher_state)
+        inv_substitute_bytes(cipher_state)
+        
+        i = self.numRounds -1;
+        while i > 0:
+            add_round_key(cipher_state, self._key_matrices[i])
+            inv_mix_columns(cipher_state)
+            inv_shift_rows(cipher_state)
+            inv_substitute_bytes(cipher_state)
+            i = i - 1;
+
+        add_round_key(cipher_state, self._key_matrices[0])
+
+        return matrix2bytes(cipher_state)
+    
+    def encrypt_block_with_printing(self, plaintext):
+        """
+        Encrypts a single block of 16 byte long plaintext.
+        """
+        assert len(plaintext) == 16
+
+        plaintext_state = bytes2matrix(plaintext)
+        #for the first round 
+        add_round_key(plaintext_state, self._key_matrices[0])
+
+        i = 1;
+        while i < self.numRounds: 
+            substitute_bytes(plaintext_state)
+            shift_rows(plaintext_state)
+            mix_columns(plaintext_state)
+            add_round_key(plaintext_state, self._key_matrices[i])
+            i = i + 1;
+        # for the last round
+        substitute_bytes(plaintext_state)
+        shift_rows(plaintext_state)
+        add_round_key(plaintext_state, self._key_matrices[-1])
+
+        return matrix2bytes(plaintext_state)
+
+    def decrypt_block_with_printing(self, ciphertext):
         """
         Decrypts a single block of 16 byte long ciphertext.
         """
