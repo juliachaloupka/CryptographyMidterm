@@ -187,7 +187,7 @@ def inv_mix_column(s):
 
 ##TODO
 
-r_con = (
+round_constants = (
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
     0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
@@ -253,30 +253,31 @@ class AES:
         # Each iteration has exactly as many columns as the key material.
         i = 1
         while len(key_matrix) < (self.numRounds + 1) * 4:
-            # Copy previous word.
-            word = list(key_matrix[-1])
-            #print("", word)
+            # Copy previous row.
+            row = list(key_matrix[-1])
+            #print("", row)
 
             # Perform schedule_core once every 4th interation/every row 
             if len(key_matrix) % iteration_size == 0:
                # print("hi")
                 # Circular shift.
-                word.append(word.pop(0))
+                row.append(row.pop(0))
                 # Map to S-BOX.
-                word = [s_box[b] for b in word]
+                row = [s_box[b] for b in row]
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
-                word[0] = word[0] ^ r_con[i]
+                row[0] = row[0] ^ round_constants[i]
+                #print("", round_constants[i])
                 i = i + 1
             elif len(master_key) == 32 and len(key_matrix) % iteration_size == 4:
-                # Run word through S-box in the fourth iteration when using a
+                # Run row through S-box in the fourth iteration when using a
                 # 256-bit key.
-                word = [s_box[b] for b in word]
+                row = [s_box[b] for b in row]
 
-            # XOR with equivalent word from previous iteration.
-            word = xor_bytes(word, key_matrix[-iteration_size])
-            key_matrix.append(word)
+            # XOR with equivalent row from previous iteration.
+            row = xor_bytes(row, key_matrix[-iteration_size])
+            key_matrix.append(row)
 
-        # Group key words in 4x4 byte matrices.
+        # Group key rows in 4x4 byte matrices.
         return [key_matrix[4*i : 4*(i+1)] for i in range(len(key_matrix) // 4)]
         
         
@@ -317,12 +318,14 @@ class AES:
         add_round_key(cipher_state, self._key_matrices[-1])
         inv_shift_rows(cipher_state)
         inv_substitute_bytes(cipher_state)
-
-        for i in range(self.numRounds -1 , 0, -1):
+        
+        i = self.numRounds -1;
+        while i > 0:
             add_round_key(cipher_state, self._key_matrices[i])
             inv_mix_columns(cipher_state)
             inv_shift_rows(cipher_state)
             inv_substitute_bytes(cipher_state)
+            i = i - 1;
 
         add_round_key(cipher_state, self._key_matrices[0])
 
