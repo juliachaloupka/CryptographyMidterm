@@ -54,6 +54,7 @@ inverse_s_box = (
 
 # byte substitution layer
 # only nonlinear element of AES 
+# subsitute bytes from s box in state aer
 #
 def substitute_bytes(s):
         
@@ -229,31 +230,36 @@ class AES:
     This is a raw implementation of AES, without key stretching or IV
     management. Unless you need that, please use `encrypt` and `decrypt`.
     """
+    rounds_by_key_size = {16: 10, 24: 12, 32: 14}
+
     def __init__(self, master_key):
         """
         Initializes the object with a given key.
         """
-        #only need 128 so only need size 16, get rid of array rounds by key size 
-        assert len(master_key) == 16
-        self.numRounds = 10
+
+        assert len(master_key) in AES.rounds_by_key_size
+        self.numRounds = AES.rounds_by_key_size[len(master_key)]
         self._key_matrices = self._expand_key(master_key)
         self._master_key = master_key
+        
     def _expand_key(self, master_key):
         """
         Expands and returns a list of key matrices for the given master_key.
         """
         # Initialize round keys with raw key material.
         key_matrix = bytes2matrix(master_key)
-        iteration_size = 4
+        iteration_size = len(master_key) // 4
 
         # Each iteration has exactly as many columns as the key material.
         i = 1
         while len(key_matrix) < (self.numRounds + 1) * 4:
             # Copy previous word.
             word = list(key_matrix[-1])
+            #print("", word)
 
             # Perform schedule_core once every 4th interation/every row 
             if len(key_matrix) % iteration_size == 0:
+               # print("hi")
                 # Circular shift.
                 word.append(word.pop(0))
                 # Map to S-BOX.
@@ -261,6 +267,10 @@ class AES:
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
                 word[0] = word[0] ^ r_con[i]
                 i = i + 1
+            elif len(master_key) == 32 and len(key_matrix) % iteration_size == 4:
+                # Run word through S-box in the fourth iteration when using a
+                # 256-bit key.
+                word = [s_box[b] for b in word]
 
             # XOR with equivalent word from previous iteration.
             word = xor_bytes(word, key_matrix[-iteration_size])
@@ -274,7 +284,7 @@ class AES:
         """
         Encrypts a single block of 16 byte long plaintext.
         """
-        print("", bytes(self._master_key))
+        print(bytes(self._master_key).hex())
 
         assert len(plaintext) == 16
 
@@ -283,7 +293,7 @@ class AES:
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
-        while i < 10: 
+        while i < self.numRounds: 
             substitute_bytes(plaintext_state)
             shift_rows(plaintext_state)
             mix_columns(plaintext_state)
@@ -308,7 +318,7 @@ class AES:
         inv_shift_rows(cipher_state)
         inv_substitute_bytes(cipher_state)
 
-        for i in range(9 , 0, -1):
+        for i in range(self.numRounds -1 , 0, -1):
             add_round_key(cipher_state, self._key_matrices[i])
             inv_mix_columns(cipher_state)
             inv_shift_rows(cipher_state)
