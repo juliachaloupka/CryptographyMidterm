@@ -214,8 +214,7 @@ def matrix2bytes(matrix):
     return byte_arr
 
 # AES 128bit encryption
-# Cipher Block Chaining (CBC) Mode
-# Ciphertext y(i) deptends on block x(i) and also previous plaintext blocks as well
+# ECB Mode
 # No Initialization Vector
 # Initializes the object with a given key.
 # only need 128 so only need size 16, get rid of array rounds by key size
@@ -288,17 +287,39 @@ class AES:
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
+<<<<<<< Upstream, based on branch 'julia' of https://github.com/juliachaloupka/CryptographyMidterm.git
         while i < self.numRounds: 
+=======
+        
+        ### write "Input Ciphertext :" (plantext_state)
+        while i < 10: 
+            ### write "ROUND: " (i) [[newline]]
+            ### write [[indented]] "State at start:                   " (plaintext_state) [[newline]]
+>>>>>>> 6af6185 Update aes.py
             substitute_bytes(plaintext_state)
+            ### write [[indented]] "State after substitution bytes:   " (plaintext_state) [[newline]]
             shift_rows(plaintext_state)
+            ### write [[indented]] "State after shift rows:           " (plaintext_state) [[newline]]
             mix_columns(plaintext_state)
+            ### write [[indented]] "State after mix columns:          " (plaintext_state) [[newline]]
             add_round_key(plaintext_state, self._key_matrices[i])
+            ### write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
             i = i + 1;
+<<<<<<< Upstream, based on branch 'julia' of https://github.com/juliachaloupka/CryptographyMidterm.git
         # for the last round
+=======
+         
+        ### write "ROUND 10 "
+        ### write [[indented]]     "State at start:                   " (plaintext_state)
+>>>>>>> 6af6185 Update aes.py
         substitute_bytes(plaintext_state)
+        ### write [[indented]]     "State after substitution bytes:   " (plaintext_state) [[newline]]   
         shift_rows(plaintext_state)
+        ### write [[indented]]     "State after shift rows:           " (plaintext_state) [[newline]]
         add_round_key(plaintext_state, self._key_matrices[-1])
-
+        ### ??? write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
+        ### write "Output Ciphertext :" (plaintext_state) [[newline]]
+        
         return matrix2bytes(plaintext_state)
 
     # 16 byte long plaintext decryption
