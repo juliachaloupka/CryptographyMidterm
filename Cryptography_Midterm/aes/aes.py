@@ -287,15 +287,9 @@ class AES:
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
-<<<<<<< Upstream, based on branch 'julia' of https://github.com/juliachaloupka/CryptographyMidterm.git
         while i < self.numRounds: 
-=======
-        
-        ### write "Input Ciphertext :" (plantext_state)
-        while i < 10: 
             ### write "ROUND: " (i) [[newline]]
             ### write [[indented]] "State at start:                   " (plaintext_state) [[newline]]
->>>>>>> 6af6185 Update aes.py
             substitute_bytes(plaintext_state)
             ### write [[indented]] "State after substitution bytes:   " (plaintext_state) [[newline]]
             shift_rows(plaintext_state)
@@ -305,13 +299,10 @@ class AES:
             add_round_key(plaintext_state, self._key_matrices[i])
             ### write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
             i = i + 1;
-<<<<<<< Upstream, based on branch 'julia' of https://github.com/juliachaloupka/CryptographyMidterm.git
         # for the last round
-=======
          
         ### write "ROUND 10 "
         ### write [[indented]]     "State at start:                   " (plaintext_state)
->>>>>>> 6af6185 Update aes.py
         substitute_bytes(plaintext_state)
         ### write [[indented]]     "State after substitution bytes:   " (plaintext_state) [[newline]]   
         shift_rows(plaintext_state)
@@ -325,7 +316,7 @@ class AES:
     # 16 byte long plaintext decryption
     #
     def decrypt_block(self, ciphertext):
-        assert len(ciphertext) == 16        
+        assert len(ciphertext) == 16
         cipher_state = bytes2matrix(ciphertext)
 
         add_round_key(cipher_state, self._key_matrices[-1])
@@ -390,6 +381,7 @@ class AES:
 
 
         return matrix2bytes(plaintext_state)
+    
     def decrypt_block_with_printing(self, ciphertext):
         """
         Decrypts a single block of 16 byte long ciphertext.
