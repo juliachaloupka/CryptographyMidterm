@@ -7,6 +7,7 @@
 # and 
 # Daniel Mitchell - Master's Computer Engineering
 #
+from pydoc import plain
 
 # AES S-Box - Substitution values in hexadecimal notation for 
 # input byte (x-row, y-column)
@@ -302,7 +303,7 @@ class AES:
         Decrypts a single block of 16 byte long ciphertext.
         """
         assert len(ciphertext) == 16
-
+        
         cipher_state = bytes2matrix(ciphertext)
 
         add_round_key(cipher_state, self._key_matrices[-1])
@@ -326,11 +327,13 @@ class AES:
         Encrypts a single block of 16 byte long plaintext.
         """
         assert len(plaintext) == 16
-
+        print("PLAINTEXT: " + bytes(plaintext).hex())
+        print("KEY: " + bytes(self._master_key).hex() + "\n \n")
         plaintext_state = bytes2matrix(plaintext)
         #for the first round 
         add_round_key(plaintext_state, self._key_matrices[0])
-
+        print("round[ 0].input : " + bytes(plaintext).hex() )
+        print("round[ 0].k_sch : " + ''.join(self._key_matrices[0]) )
         i = 1;
         while i < self.numRounds: 
             substitute_bytes(plaintext_state)
