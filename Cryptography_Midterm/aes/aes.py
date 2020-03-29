@@ -54,6 +54,7 @@ inverse_s_box = (
 
 # byte substitution layer
 # only nonlinear element of AES 
+# subsitute bytes from s box in state aer
 #
 def substitute_bytes(s):
         
@@ -185,9 +186,7 @@ def inv_mix_column(s):
 
 # Comments are needed here as to what r_con is - what is does - how its used
 # vvvvvvv
-##TODO
-#
-r_con = (
+round_constants = (
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
     0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
@@ -198,6 +197,18 @@ r_con = (
 # to ease the computational code
 #
 def bytes2matrix(txt):
+  
+    """ Converts a 16-byte array into a 4x4 matrix.  """
+    lenTxt = len(txt)
+    #generate an array using 4 lists for each row 
+    matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
+    return matrix
+
+# this routine conversts a 16-byte array into a 4x4 matrix
+# to ease the computational code
+#
+def bytes2matrix(txt):
+    """ Converts a 16-byte array into a 4x4 matrix.  """
     lenTxt = len(txt)
     #generate an array using 4 lists for each row 
     matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
@@ -207,14 +218,9 @@ def bytes2matrix(txt):
 # to ease the computational code
 #
 def matrix2bytes(matrix):
+    """ Converts a 4x4 matrix into a 16-byte array.  """
     byte_arr = bytearray(sum(matrix, []))
     return byte_arr
-
-# this routine performs an xor on the bytes in an array
-# 
-def xor_bytes(a, b):
-    xor_arr = (i^j for i, j in zip(a,b))
-    return bytearray(xor_arr)
 
 # AES 128bit encryption
 # ECB Mode
@@ -224,75 +230,81 @@ def xor_bytes(a, b):
 #
 #TODO
 class AES:
+        
+    rounds_by_key_size = {16: 10, 24: 12, 32: 14}
+
     def __init__(self, master_key):
-        assert len(master_key) == 16
-        self.numRounds = 10
+        """
+        Initializes the object with a given key.
+        """
+
+        assert len(master_key) in AES.rounds_by_key_size
+        self.numRounds = AES.rounds_by_key_size[len(master_key)]
+        # Expand and return list of key matricies for given master key
         self._key_matrices = self._expand_key(master_key)
         self._master_key = master_key
         
-    # Expand and return list of key matricies for given master key
-    #
+    #learned from boppreh : https://github.com/boppreh/aes/blob/master/aes.py   
     def _expand_key(self, master_key):
         #   Initialize round keys with raw key material
         key_matrix = bytes2matrix(master_key)
         iteration_size = 4
         #   Each iteration has exactly as many columns as the key material.      
+        iteration_size = len(master_key) // 4
+
         i = 1
         while len(key_matrix) < (self.numRounds + 1) * 4:
-            # Copy previous word.
-            word = list(key_matrix[-1])
+            # Copy previous row.
+            row = list(key_matrix[-1])
 
             # Perform schedule_core once every 4th interation/every row 
             if len(key_matrix) % iteration_size == 0:
                 # Circular shift.
-                word.append(word.pop(0))
+                row.append(row.pop(0))
                 # Map to S-BOX.
-                word = [s_box[b] for b in word]
+                row = [s_box[b] for b in row]
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
-                word[0] = word[0] ^ r_con[i]
+                row[0] = row[0] ^ round_constants[i]
+                #print("", round_constants[i])
                 i = i + 1
+            elif len(master_key) == 32 and len(key_matrix) % iteration_size == 4:
+                # Run row through S-box in the fourth iteration when using a
+                # 256-bit key.
+                row = [s_box[b] for b in row]
 
-            # XOR with equivalent word from previous iteration.
-            word = xor_bytes(word, key_matrix[-iteration_size])
-            key_matrix.append(word)
+            # XOR with equivalent row from previous iteration.
 
-        # Group key words in 4x4 byte matrices.
+            xor_arr = (i^j for i, j in zip(row,key_matrix[-iteration_size]))
+            row = bytearray(xor_arr)
+            key_matrix.append(row)
+
+        # Group key rows in 4x4 byte matrices.
         return [key_matrix[4*i : 4*(i+1)] for i in range(len(key_matrix) // 4)]
         
     # 16 byte long plaintext encryption
     #
     def encrypt_block(self, plaintext):
-        print("", bytes(self._master_key))
+        """
+        Encrypts a single block of 16 byte long plaintext.
+        """
         assert len(plaintext) == 16
+
         plaintext_state = bytes2matrix(plaintext)
+        #for the first round 
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
-        
-        ### write "Input Ciphertext :" (plantext_state)
-        while i < 10: 
-            ### write "ROUND: " (i) [[newline]]
-            ### write [[indented]] "State at start:                   " (plaintext_state) [[newline]]
+        while i < self.numRounds: 
             substitute_bytes(plaintext_state)
-            ### write [[indented]] "State after substitution bytes:   " (plaintext_state) [[newline]]
             shift_rows(plaintext_state)
-            ### write [[indented]] "State after shift rows:           " (plaintext_state) [[newline]]
             mix_columns(plaintext_state)
-            ### write [[indented]] "State after mix columns:          " (plaintext_state) [[newline]]
             add_round_key(plaintext_state, self._key_matrices[i])
-            ### write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
             i = i + 1;
-         
-        ### write "ROUND 10 "
-        ### write [[indented]]     "State at start:                   " (plaintext_state)
+        # for the last round
         substitute_bytes(plaintext_state)
-        ### write [[indented]]     "State after substitution bytes:   " (plaintext_state) [[newline]]   
         shift_rows(plaintext_state)
-        ### write [[indented]]     "State after shift rows:           " (plaintext_state) [[newline]]
         add_round_key(plaintext_state, self._key_matrices[-1])
-        ### ??? write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
-        ### write "Output Ciphertext :" (plaintext_state) [[newline]]
-        
+
         return matrix2bytes(plaintext_state)
 
     # 16 byte long plaintext decryption
@@ -303,12 +315,62 @@ class AES:
         add_round_key(cipher_state, self._key_matrices[-1])
         inv_shift_rows(cipher_state)
         inv_substitute_bytes(cipher_state)
-
-        for i in range(9 , 0, -1):
+        
+        i = self.numRounds -1;
+        while i > 0:
             add_round_key(cipher_state, self._key_matrices[i])
             inv_mix_columns(cipher_state)
             inv_shift_rows(cipher_state)
             inv_substitute_bytes(cipher_state)
+            i = i - 1;
+
+        add_round_key(cipher_state, self._key_matrices[0])
+
+        return matrix2bytes(cipher_state)
+    
+    def encrypt_block_with_printing(self, plaintext):
+        """
+        Encrypts a single block of 16 byte long plaintext.
+        """
+        assert len(plaintext) == 16
+
+        plaintext_state = bytes2matrix(plaintext)
+        #for the first round 
+        add_round_key(plaintext_state, self._key_matrices[0])
+
+        i = 1;
+        while i < self.numRounds: 
+            substitute_bytes(plaintext_state)
+            shift_rows(plaintext_state)
+            mix_columns(plaintext_state)
+            add_round_key(plaintext_state, self._key_matrices[i])
+            i = i + 1;
+        # for the last round
+        substitute_bytes(plaintext_state)
+        shift_rows(plaintext_state)
+        add_round_key(plaintext_state, self._key_matrices[-1])
+
+        return matrix2bytes(plaintext_state)
+
+    def decrypt_block_with_printing(self, ciphertext):
+        """
+        Decrypts a single block of 16 byte long ciphertext.
+        """
+        assert len(ciphertext) == 16
+
+        cipher_state = bytes2matrix(ciphertext)
+
+        add_round_key(cipher_state, self._key_matrices[-1])
+        inv_shift_rows(cipher_state)
+        inv_substitute_bytes(cipher_state)
+        
+        i = self.numRounds -1;
+        while i > 0:
+            add_round_key(cipher_state, self._key_matrices[i])
+            inv_mix_columns(cipher_state)
+            inv_shift_rows(cipher_state)
+            inv_substitute_bytes(cipher_state)
+            i = i - 1;
 
         add_round_key(cipher_state, self._key_matrices[0])
 
