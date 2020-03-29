@@ -231,6 +231,7 @@ def matrix2bytes(matrix):
 #TODO
 class AES:
         
+    
     rounds_by_key_size = {16: 10, 24: 12, 32: 14}
 
     def __init__(self, master_key):
@@ -335,22 +336,36 @@ class AES:
         assert len(plaintext) == 16
 
         plaintext_state = bytes2matrix(plaintext)
+        print ( "Plaintext :", plaintext, " = ", plaintext_state )
         #for the first round 
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
         while i < self.numRounds: 
+            print ("ENCRYPTION ROUND: ", i)
             substitute_bytes(plaintext_state)
+            print ("    Substitute bytes state:          ", plaintext_state)
             shift_rows(plaintext_state)
+            print ("    Shift rows state:                ", plaintext_state)
             mix_columns(plaintext_state)
+            print ("    Mix columns state:               ", plaintext_state)
             add_round_key(plaintext_state, self._key_matrices[i])
+            print ("    Add Round Key:                   ", plaintext_state)
+            print ("    Key Schedule used for this round ", self._key_matrices[i])
             i = i + 1;
         # for the last round
+        print ("ENCRYPTION ROUND: ", i)
         substitute_bytes(plaintext_state)
+        print ("    Substitute bytes state:          ", plaintext_state)
         shift_rows(plaintext_state)
+        print ("    Shift rows state:                ", plaintext_state)
         add_round_key(plaintext_state, self._key_matrices[-1])
+        print ("    Add Round Key:                   ", plaintext_state)
+        print ("    Key Schedule used for this round ", self._key_matrices[i])
+        print (" ")
 
         return matrix2bytes(plaintext_state)
+
 
     def decrypt_block_with_printing(self, ciphertext):
         """
@@ -360,17 +375,29 @@ class AES:
 
         cipher_state = bytes2matrix(ciphertext)
 
+        print ("DECRYPTION ROUND: ", self.numRounds)
+        print ("    Key Schedule used for this round ", self._key_matrices[self.numRounds])
         add_round_key(cipher_state, self._key_matrices[-1])
+        print ("    Add Round Key:                   ", cipher_state)
         inv_shift_rows(cipher_state)
+        print ("    Shift rows state:                ", cipher_state)
         inv_substitute_bytes(cipher_state)
-        
+        print ("    Substitute bytes state:          ", cipher_state)
+        print ( ciphertext )
         i = self.numRounds -1;
         while i > 0:
+            print ("DECRYPTION ROUND: ", i)
+            print ("    Key Schedule used for this round ", self._key_matrices[i])
             add_round_key(cipher_state, self._key_matrices[i])
+            print ("    Add Round Key:                   ", cipher_state)
             inv_mix_columns(cipher_state)
+            print ("    Mix columns state:               ", cipher_state)
             inv_shift_rows(cipher_state)
+            print ("    Shift rows state:                ", cipher_state)
             inv_substitute_bytes(cipher_state)
+            print ("    Substitute bytes state:          ", cipher_state)
             i = i - 1;
+        print (" ")
 
         add_round_key(cipher_state, self._key_matrices[0])
 
