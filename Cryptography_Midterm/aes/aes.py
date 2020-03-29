@@ -7,7 +7,6 @@
 #    and 
 # Daniel Mitchell - Master's Computer Engineering
 #
-from pydoc import plain
 
 # AES S-Box - Substitution values in hexadecimal notation for 
 # input byte (x-row, y-column)
