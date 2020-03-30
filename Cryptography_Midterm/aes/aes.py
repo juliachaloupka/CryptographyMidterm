@@ -219,7 +219,7 @@ def bytes2matrix(txt):
 #
 def matrix2bytes(matrix):
     """ Converts a 4x4 matrix into a 16-byte array.  """
-    byte_arr = bytearray(sum(matrix, []))
+    byte_arr = bytes(sum(matrix, []))
     return byte_arr
 
 # AES 128bit encryption
@@ -245,13 +245,15 @@ class AES:
         self._master_key = master_key
         
     #learned from boppreh : https://github.com/boppreh/aes/blob/master/aes.py   
+    # Expand and return list of key matricies for given master key
+    #
     def _expand_key(self, master_key):
         #   Initialize round keys with raw key material
         key_matrix = bytes2matrix(master_key)
         iteration_size = 4
         #   Each iteration has exactly as many columns as the key material.      
         iteration_size = len(master_key) // 4
-
+        
         i = 1
         while len(key_matrix) < (self.numRounds + 1) * 4:
             # Copy previous row.
@@ -275,7 +277,7 @@ class AES:
             # XOR with equivalent row from previous iteration.
 
             xor_arr = (i^j for i, j in zip(row,key_matrix[-iteration_size]))
-            row = bytearray(xor_arr)
+            row = bytes(xor_arr)
             key_matrix.append(row)
 
         # Group key rows in 4x4 byte matrices.
@@ -288,23 +290,35 @@ class AES:
         Encrypts a single block of 16 byte long plaintext.
         """
         assert len(plaintext) == 16
-
         plaintext_state = bytes2matrix(plaintext)
         #for the first round 
         add_round_key(plaintext_state, self._key_matrices[0])
 
         i = 1;
         while i < self.numRounds: 
+            ### write "ROUND: " (i) [[newline]]
+            ### write [[indented]] "State at start:                   " (plaintext_state) [[newline]]
             substitute_bytes(plaintext_state)
+            ### write [[indented]] "State after substitution bytes:   " (plaintext_state) [[newline]]
             shift_rows(plaintext_state)
+            ### write [[indented]] "State after shift rows:           " (plaintext_state) [[newline]]
             mix_columns(plaintext_state)
+            ### write [[indented]] "State after mix columns:          " (plaintext_state) [[newline]]
             add_round_key(plaintext_state, self._key_matrices[i])
+            ### write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
             i = i + 1;
         # for the last round
+         
+        ### write "ROUND 10 "
+        ### write [[indented]]     "State at start:                   " (plaintext_state)
         substitute_bytes(plaintext_state)
+        ### write [[indented]]     "State after substitution bytes:   " (plaintext_state) [[newline]]   
         shift_rows(plaintext_state)
+        ### write [[indented]]     "State after shift rows:           " (plaintext_state) [[newline]]
         add_round_key(plaintext_state, self._key_matrices[-1])
-
+        ### ??? write [[indented]] "Key schedule value                " (self.key_matrices[i]) [[newline]]
+        ### write "Output Ciphertext :" (plaintext_state) [[newline]]
+        
         return matrix2bytes(plaintext_state)
 
     # 16 byte long plaintext decryption
@@ -333,46 +347,94 @@ class AES:
         Encrypts a single block of 16 byte long plaintext.
         """
         assert len(plaintext) == 16
-
+        print("START ENCRYPT: \n \n")
+        print("PLAINTEXT: " + bytes(plaintext).hex())
+        print("KEY: " + bytes(self._master_key).hex() + "\n")
         plaintext_state = bytes2matrix(plaintext)
         #for the first round 
         add_round_key(plaintext_state, self._key_matrices[0])
-
+        print("round[ 0].input : " + bytes(plaintext).hex() )
+        print("round[ 0].k_sch : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(self._key_matrices[0])))
+        print("round[ 1].start : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
+        
         i = 1;
         while i < self.numRounds: 
             substitute_bytes(plaintext_state)
+            print("round[ " + str(i) + "].s_box : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
             shift_rows(plaintext_state)
+            print("round[ " + str(i) + "].s_row : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
+
             mix_columns(plaintext_state)
-            add_round_key(plaintext_state, self._key_matrices[i])
+            print("round[ " + str(i) + "].m_col : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
+
+            add_round_key(plaintext_state, self._key_matrices[i]) 
+            byte_str = b''.join(map(bytes, self._key_matrices[i]))
+            print("round[ "+ str(i) +"].k_sch : " + ''.join('{:02x}'.format(x) for x in byte_str))
+            
+            
             i = i + 1;
         # for the last round
+        print("round[ " + str(i) + "].start : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
+
         substitute_bytes(plaintext_state)
+        print("round[ "+ str(i) +"].s_box : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
+
         shift_rows(plaintext_state)
+        print("round[ "+ str(i) + "].s_row : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
+
         add_round_key(plaintext_state, self._key_matrices[-1])
+        byte_str = b''.join(map(bytes, self._key_matrices[-1]))
+        print("round[ "+ str(i) + "].k_sch : " + ''.join('{:02x}'.format(x) for x in byte_str))
+        print("round[ "+ str(i) + "].output : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)) + "\n \nEND ENCRYPT \n \n")
+
 
         return matrix2bytes(plaintext_state)
-
+    
     def decrypt_block_with_printing(self, ciphertext):
         """
         Decrypts a single block of 16 byte long ciphertext.
         """
         assert len(ciphertext) == 16
-
+        print("START DECRYPT: \n \n")
+        print("CIPHERTEXT: " + bytes(ciphertext).hex())
+        print("KEY: " + bytes(self._master_key).hex() + "\n")
+        
+        counter = 1;
+        
         cipher_state = bytes2matrix(ciphertext)
-
+        print("round[ 0].iinput : " + bytes(ciphertext).hex() )        
         add_round_key(cipher_state, self._key_matrices[-1])
+        byte_str = b''.join(map(bytes, self._key_matrices[-1]))
+        print("round[ 0].ik_sch : " + ''.join('{:02x}'.format(x) for x in byte_str))
+        print("round[ 1].istart : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
         inv_shift_rows(cipher_state)
+        print("round[ 1].is_row : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
+
         inv_substitute_bytes(cipher_state)
+        print("round[ 1].is_box : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
+
         
         i = self.numRounds -1;
         while i > 0:
             add_round_key(cipher_state, self._key_matrices[i])
+            byte_str = b''.join(map(bytes, self._key_matrices[i]))
+            print("round[ "+ str(counter) + "].ik_sch : " + ''.join('{:02x}'.format(x) for x in byte_str))
+            print("round[ " + str(counter) + "].ik_add : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
+            counter = counter + 1;
             inv_mix_columns(cipher_state)
+            print("round[ " + str(counter) + "].istart : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
             inv_shift_rows(cipher_state)
+            print("round[ " + str(counter) + "].is_row : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
             inv_substitute_bytes(cipher_state)
-            i = i - 1;
+            print("round[ " + str(counter) + "].is_box : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)))
 
+            i = i - 1;
+            
         add_round_key(cipher_state, self._key_matrices[0])
+        byte_str = b''.join(map(bytes, self._key_matrices[0]))
+        print("round[ "+ str(counter) + "].ik_sch : " + ''.join('{:02x}'.format(x) for x in byte_str))
+        print("round[ " + str(counter) + "].ioutput : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(cipher_state)) + "\n \nEND DECRYPT \n \n")
+        
 
         return matrix2bytes(cipher_state)
 
@@ -383,4 +445,5 @@ if __name__ == '__main__':
     write = lambda b: sys.stdout.buffer.write(b)
     read = lambda: sys.stdin.buffer.read()
     
+
 # End of Code
