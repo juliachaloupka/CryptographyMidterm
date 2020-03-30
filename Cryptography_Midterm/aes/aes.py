@@ -186,13 +186,23 @@ def inv_mix_column(s):
 
 # Comments are needed here as to what r_con is - what is does - how its used
 # vvvvvvv
-##TODO
 round_constants = (
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
     0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
     0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39,
 )
+
+# this routine conversts a 16-byte array into a 4x4 matrix
+# to ease the computational code
+#
+def bytes2matrix(txt):
+  
+    """ Converts a 16-byte array into a 4x4 matrix.  """
+    lenTxt = len(txt)
+    #generate an array using 4 lists for each row 
+    matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
+    return matrix
 
 # this routine conversts a 16-byte array into a 4x4 matrix
 # to ease the computational code
@@ -220,11 +230,7 @@ def matrix2bytes(matrix):
 #
 #TODO
 class AES:
-    """
-    Class for AES-128 encryption with CBC mode and PKCS#7.
-    This is a raw implementation of AES, without key stretching or IV
-    management. Unless you need that, please use `encrypt` and `decrypt`.
-    """
+        
     rounds_by_key_size = {16: 10, 24: 12, 32: 14}
 
     def __init__(self, master_key):
@@ -234,6 +240,7 @@ class AES:
 
         assert len(master_key) in AES.rounds_by_key_size
         self.numRounds = AES.rounds_by_key_size[len(master_key)]
+        # Expand and return list of key matricies for given master key
         self._key_matrices = self._expand_key(master_key)
         self._master_key = master_key
         
@@ -243,8 +250,10 @@ class AES:
     def _expand_key(self, master_key):
         #   Initialize round keys with raw key material
         key_matrix = bytes2matrix(master_key)
-        iteration_size = len(master_key) // 4
+        iteration_size = 4
         #   Each iteration has exactly as many columns as the key material.      
+        iteration_size = len(master_key) // 4
+        
         i = 1
         while len(key_matrix) < (self.numRounds + 1) * 4:
             # Copy previous row.
@@ -317,7 +326,6 @@ class AES:
     def decrypt_block(self, ciphertext):
         assert len(ciphertext) == 16
         cipher_state = bytes2matrix(ciphertext)
-
         add_round_key(cipher_state, self._key_matrices[-1])
         inv_shift_rows(cipher_state)
         inv_substitute_bytes(cipher_state)
@@ -437,4 +445,5 @@ if __name__ == '__main__':
     write = lambda b: sys.stdout.buffer.write(b)
     read = lambda: sys.stdin.buffer.read()
     
+
 # End of Code
