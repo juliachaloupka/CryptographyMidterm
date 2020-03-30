@@ -35,7 +35,7 @@ class TestBlock(unittest.TestCase):
         key     = b'\x2B\x7E\x15\x16\x28\xAE\xD2\xA6\xAB\xF7\x15\x88\x09\xCF\x4F\x3C'
         ciphertext = AES(bytes(key)).encrypt_block(bytes(message))
         self.assertEqual(ciphertext, b'\x39\x25\x84\x1D\x02\xDC\x09\xFB\xDC\x11\x85\x97\x19\x6A\x0B\x32')
-    """
+    
     def test_expected_value_printing(self):
         
         #Tests taken from the NIST document, Appendix B:
@@ -55,7 +55,7 @@ class TestBlock(unittest.TestCase):
         message = AES(bytes(key)).decrypt_block_with_printing(bytes(ciphertext))
         self.assertEqual(message, b'\x43\x6f\x72\x72\x65\x63\x74\x20\x44\x65\x63\x72\x79\x70\x74\x21')
         
-    """
+    
     def test_expected_value2_printing(self):
         """
         Tests taken from the NIST document, Appendix B:
@@ -63,7 +63,7 @@ class TestBlock(unittest.TestCase):
         """
         message = b'\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff'
         key     = b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f'
-        ciphertext = AES(bytes(key)).encrypt_block_with_printing(bytes(message))
+        ciphertext = AES(bytes(key)).encrypt_block(bytes(message))
         self.assertEqual(ciphertext,  b'\x69\xc4\xe0\xd8\x6a\x7b\x04\x30\xd8\xcd\xb7\x80\x70\xb4\xc5\x5a')    
     def test_decrypt_value2_printing(self):
         """
@@ -72,7 +72,7 @@ class TestBlock(unittest.TestCase):
         """
         key        = b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f'
         ciphertext = b'\x69\xc4\xe0\xd8\x6a\x7b\x04\x30\xd8\xcd\xb7\x80\x70\xb4\xc5\x5a'
-        message = AES(bytes(key)).decrypt_block_with_printing(bytes(ciphertext))
+        message = AES(bytes(key)).decrypt_block(bytes(ciphertext))
         self.assertEqual(message, b'\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff')
 
 class TestKeySizes(unittest.TestCase):
