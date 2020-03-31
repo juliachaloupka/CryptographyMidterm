@@ -9,7 +9,8 @@
 
 # AES S-Box - Substitution values in hexadecimal notation for 
 # input byte (x-row, y-column)
-# Testing 123
+# 
+
 
 s_box = (
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -135,12 +136,12 @@ def gmult(a):
     if a & 0x80:
         result = (((a << 1) ^ 0x1B) & 0xFF)
     else:
-       result= a<<1   
+        result= a<<1   
     return result;
 
 # subroutine of of mix columns
 # see mix column below
-#TODO
+#
 def mix_single_column(a):
     # Mix column operations 
     # source of this is from the section 4.1.2 of the Rijndal design
@@ -153,7 +154,7 @@ def mix_single_column(a):
 
 # mix column mixes each column of the state matrix 
 # the purpose is the major diffusion element of AES
-#TODO
+#
 def mix_columns(s):
     i = 0;
     while i<4:
@@ -162,7 +163,7 @@ def mix_columns(s):
         
 # mix column mixes each column of the state matrix 
 # the purpose is the major diffusion element of AES
-#TODO
+#
 def inv_mix_columns(s):  
     i = 0;
     while i<4:
@@ -174,7 +175,7 @@ def inv_mix_columns(s):
 # mix column mixes each column of the state matrix 
 # inverse mix column reverses the changes made in the forward encryption operation 
 # the purpose is the major diffusion element of AES
-#TODO
+#
 def inv_mix_column(s):
     # see Sec 4.1.3 in The Design of Rijndael
     u = gmult(gmult(s[0] ^ s[2]))
@@ -184,8 +185,11 @@ def inv_mix_column(s):
     s[2] = s[2]^ u
     s[3] = s[3]^ v
 
-# Comments are needed here as to what r_con is - what is does - how its used
-# vvvvvvv
+#  AES uses a key schedule to expand a short key into a number of separate round keys.
+#  The three AES variants have a different number of rounds.  Each variant requres a
+# separate 128-bit round key for each round plus one more.  The key schedule produces
+# the needed round keys from the initial key.
+#
 round_constants = (
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
     0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
@@ -197,8 +201,7 @@ round_constants = (
 # to ease the computational code
 #
 def bytes2matrix(txt):
-  
-    """ Converts a 16-byte array into a 4x4 matrix.  """
+
     lenTxt = len(txt)
     #generate an array using 4 lists for each row 
     matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
@@ -208,7 +211,6 @@ def bytes2matrix(txt):
 # to ease the computational code
 #
 def matrix2bytes(matrix):
-    """ Converts a 4x4 matrix into a 16-byte array.  """
     byte_arr = bytes(sum(matrix, []))
     return byte_arr
 
@@ -217,17 +219,13 @@ def matrix2bytes(matrix):
 # No Initialization Vector
 # Initializes the object with a given key.
 # only need 128 so only need size 16, get rid of array rounds by key size
-#
-#TODO
+##
 class AES:
         
     rounds_by_key_size = {16: 10, 24: 12, 32: 14}
 
+    # Initialiye with given key
     def __init__(self, master_key):
-        """
-        Initializes the object with a given key.
-        """
-
         assert len(master_key) in AES.rounds_by_key_size
         self.numRounds = AES.rounds_by_key_size[len(master_key)]
         # Expand and return list of key matricies for given master key
@@ -257,7 +255,7 @@ class AES:
                 row = [s_box[b] for b in row]
                 # XOR with first byte of R-CON, since the others bytes of R-CON are 0.
                 row[0] = row[0] ^ round_constants[i]
-                #print("", round_constants[i])
+                # print("", round_constants[i])
                 i = i + 1
             elif len(master_key) == 32 and len(key_matrix) % iteration_size == 4:
                 # Run row through S-box in the fourth iteration when using a
@@ -276,9 +274,6 @@ class AES:
     # 16 byte long plaintext encryption
     #
     def encrypt_block(self, plaintext):
-        """
-        Encrypts a single block of 16 byte long plaintext.
-        """
         assert len(plaintext) == 16
         plaintext_state = bytes2matrix(plaintext)
         #for the first round 
@@ -332,10 +327,8 @@ class AES:
 
         return matrix2bytes(cipher_state)
     
+    # Encryption of a single block of 16 bytes ciphertext    
     def encrypt_block_with_printing(self, plaintext):
-        """
-        Encrypts a single block of 16 byte long plaintext.
-        """
         assert len(plaintext) == 16
         print("START ENCRYPT: \n \n")
         print("PLAINTEXT: " + bytes(plaintext).hex())
@@ -360,8 +353,7 @@ class AES:
             add_round_key(plaintext_state, self._key_matrices[i]) 
             byte_str = b''.join(map(bytes, self._key_matrices[i]))
             print("round[ "+ str(i) +"].k_sch : " + ''.join('{:02x}'.format(x) for x in byte_str))
-            
-            
+                        
             i = i + 1;
         # for the last round
         print("round[ " + str(i) + "].start : " + ''.join('{:02x}'.format(x) for x in matrix2bytes(plaintext_state)))
@@ -380,10 +372,9 @@ class AES:
 
         return matrix2bytes(plaintext_state)
     
+    # Decryption of a single block of 16 bytes ciphertext
     def decrypt_block_with_printing(self, ciphertext):
-        """
-        Decrypts a single block of 16 byte long ciphertext.
-        """
+
         assert len(ciphertext) == 16
         print("START DECRYPT: \n \n")
         print("CIPHERTEXT: " + bytes(ciphertext).hex())
