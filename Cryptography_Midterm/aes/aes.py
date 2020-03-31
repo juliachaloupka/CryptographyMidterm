@@ -204,16 +204,6 @@ def bytes2matrix(txt):
     matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
     return matrix
 
-# this routine conversts a 16-byte array into a 4x4 matrix
-# to ease the computational code
-#
-def bytes2matrix(txt):
-    """ Converts a 16-byte array into a 4x4 matrix.  """
-    lenTxt = len(txt)
-    #generate an array using 4 lists for each row 
-    matrix = [list(txt[i:i+4]) for i in range(0, lenTxt, 4)]
-    return matrix
-
 # this routine conversts a 4x4 matrix into a 16-byte array
 # to ease the computational code
 #
